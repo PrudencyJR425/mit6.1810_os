@@ -1,7 +1,9 @@
 // Physical memory allocator, for user processes,
 // kernel stacks, page-table pages,
 // and pipe buffers. Allocates whole 4096-byte pages.
-
+//用户进程的物理内存分配器
+//内核栈，页表页
+//和管道缓冲区。分配整个4096字节的页面。
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -18,6 +20,12 @@ struct run {
   struct run *next;
 };
 
+
+//kmem 这个名称应该是kernel memory的缩写，
+//这个结构体内部有一把自旋锁的lock字段和一个负责记录空闲page的链表的freelist字段
+//freelist维护的是空闲页的数量，因此我们想要找到空闲内存的总大小，
+//只需要遍历整个freelist，就可以找到总共空闲页的数量，而每个页有PGSIZE即4096个字节，
+//因此我们只需要将获得的页面数乘以PGSIZE即可
 struct {
   struct spinlock lock;
   struct run *freelist;
@@ -80,3 +88,18 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+uint64
+kfree_mem_cnt(void){
+  struct run *r;
+  uint64 cnt = 0;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  while(r){
+    cnt++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  return cnt*PGSIZE;
+}
+

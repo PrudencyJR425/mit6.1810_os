@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -90,4 +91,27 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_trace(void){
+  argint(0,&myproc()->traceMask);      //从陷阱帧中检索第n个系统调用参数并保存。argint(n,&int);
+  return 0;
+}
+
+uint64
+sys_sysinfo(void){
+  struct sysinfo sinfo;
+  struct proc *p = myproc();
+  uint64 addr; // user pointer to struct sysinfo
+  argaddr(0, &addr);
+  //计算空闲内存大小
+  sinfo.freemem = kfree_mem_cnt();
+  //计算内存中state不为UNUSED的进程数量
+  sinfo.nproc = GetNotUnusedProcNum();
+  //函数copyout用于将数据从内核复制到用户提供的地址。
+
+  if(copyout(p->pagetable,addr,(char *)&sinfo,sizeof(sinfo))<0)
+    return -1;
+  return 0;
 }
