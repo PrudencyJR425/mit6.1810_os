@@ -82,6 +82,7 @@ kvminithart()
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
+// walk为输入的va找到其对应的最后一级页表的PTE。
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
@@ -435,5 +436,36 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return 0;
   } else {
     return -1;
+  }
+}
+
+void vmprint(pagetable_t pagetable){
+  printf("page table %p\n",pagetable);
+  vmprint_dfs(pagetable,1);
+}
+
+void vmprint_dfs(pagetable_t pagetable,uint64 level){
+  static char* prefix[] = {
+    [1] = "..",
+          ".. ..",
+          ".. .. .."
+  };
+  if(level > 3){
+    panic("vmprint_dfs: depth > 3");
+    return;
+  }
+  //查找pte.
+  for(int i=0;i<512;i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V)){
+      //标志位限定了不可读、不可写、不可执行的页面才进入下一步递归，因为这意味着这是个间接层，不记载内容，只作为多级页表的一级。
+      //但是不可读,不可写、不可执行的页面同样需要打印。
+      uint64 child = PTE2PA(pte);
+      printf("%s%d: pte %p pa %p\n",prefix[level],i,pte,child);
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0)
+        vmprint_dfs((pagetable_t)child,level+1);
+    } else if(pte & PTE_V){
+      panic("vmprint: leaf");
+    } 
   }
 }

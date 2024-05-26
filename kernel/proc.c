@@ -106,6 +106,7 @@ allocpid()
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
+// 找到闲置进程:初始化内核运行需要的状态,这需要进行页分配
 static struct proc*
 allocproc(void)
 {
@@ -131,6 +132,16 @@ found:
     release(&p->lock);
     return 0;
   }
+
+  // alloc usyscall
+  #ifdef LAB_PGTBL
+  if((p->usyscall = (struct usyscall *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  p->usyscall->pid = p->pid;
+  #endif
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -158,6 +169,11 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  #ifdef LAB_PGTBL
+    if(p->usyscall)
+      kfree((void*)p->usyscall);
+    p->usyscall = 0;
+  #endif
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -169,10 +185,12 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
 }
 
 // Create a user page table for a given process, with no user memory,
 // but with trampoline and trapframe pages.
+// 为给定进程创建一个用户页表。不分配用户存储空间,但是有trampoline trapframe页表。
 pagetable_t
 proc_pagetable(struct proc *p)
 {
@@ -202,6 +220,16 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // 在USYSCALL上映射一个只读页面。在本页开头,存储一个结构体usycall,并且初始化存储当前进程的pid.
+  #ifdef LAB_PGTBL
+    if(mappages(pagetable, USYSCALL, PGSIZE,
+              (uint64)(p->usyscall), PTE_R | PTE_U) < 0){
+    uvmunmap(pagetable, USYSCALL, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+  #endif
+
   return pagetable;
 }
 
@@ -212,6 +240,9 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  #ifdef LAB_PGTBL
+    uvmunmap(pagetable, USYSCALL, 1, 0);
+  #endif
   uvmfree(pagetable, sz);
 }
 

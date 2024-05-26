@@ -75,6 +75,33 @@ int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  // 检查三个参数 起始虚拟地址 char *、页数 int和存放掩码数据的地址 unsigned int 。
+  uint64 va;
+  int page_num;
+  uint64 access_mask;
+  argaddr(0,&va);
+  argint(1,&page_num);
+  argaddr(2,&access_mask);
+  if(page_num < 0 || page_num > 512){
+    return -1;
+  }
+  uint mask=0;
+  //TO DO
+  //为可以扫描的页面数量设置一个上限.
+  //找到正确的pte--遍历页表,参考walk方法
+  for(int i=0;i<page_num;i++){
+    pte_t* pte = walk(myproc()->pagetable,va+i*PGSIZE,0);
+    if(pte && (*pte&PTE_V)&&(*pte&PTE_A)){
+      //清除PTE_A
+      *pte &= ~PTE_A;
+      //设置mask
+      mask |= (1<<i);
+    }
+  }
+  // 传出参数:更容易的方法是在内核中存储一个临时缓冲区(中间变量 mask)，并在填充正确的位后将其复制给用户access_mask(通过copyout())。
+
+  copyout(myproc()->pagetable,access_mask,(char*)&mask,sizeof(mask));
+  
   return 0;
 }
 #endif
