@@ -319,6 +319,15 @@ r_ra()
   return x;
 }
 
+//GCC编译器将当前正在执行的函数的帧指针保存在s0寄存器.通过本函数读取s0获取当前帧指针。
+static inline uint64
+r_fp()
+{
+  uint64 x;
+  asm volatile("mv %0, s0" : "=r" (x) );
+  return x;
+}
+
 // flush the TLB.
 static inline void
 sfence_vma()
@@ -361,3 +370,5 @@ typedef uint64 *pagetable_t; // 512 PTEs
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+
+

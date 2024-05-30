@@ -77,7 +77,7 @@ void __attribute__ ((noinline)) foo(int i, int *j) {
 // the point in the program where the timer interrupt
 // occurred, with all registers holding the same values they
 // held when the interrupt occurred.
-//
+// test1需要保证:中断恢复后,寄存器恢复上下文。
 void
 test1()
 {

@@ -85,6 +85,12 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
   struct spinlock lock;
 
+  int ticks;                   // 报警间隔
+  int passed_ticks;            // 已经经历的ticks。
+  void (*handler)();               // 指向处理程序函数的指针
+  struct trapframe* pre_trapframe;    //指向上一陷阱帧的指针,用于上下文恢复。
+  int alarm_on;
+
   // p->lock must be held when using these:
   enum procstate state;        // Process state
   void *chan;                  // If non-zero, sleeping on chan
@@ -104,4 +110,5 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-};
+
+}; 
